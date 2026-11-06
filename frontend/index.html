@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentPay AI - Autonomous Payment Agent</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center p-6">
+
+  <!-- Header -->
+  <header class="w-full max-w-4xl text-center py-6 border-b border-slate-800 mb-8">
+    <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 via-indigo-300 to-emerald-400 bg-clip-text text-transparent">
+      AgentPay AI ⚡
+    </h1>
+    <p class="text-sm text-slate-400 mt-1">Autonomous Natural Language Payments & OTP Verification</p>
+  </header>
+
+  <main class="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-6">
+
+    <!-- Card 1: Natural Language Prompt -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+      <div>
+        <h2 class="text-lg font-semibold text-blue-400 mb-2">1. Autonomous Agent Prompt</h2>
+        <p class="text-xs text-slate-400 mb-4">Command the AI agent to make a payment using simple words.</p>
+        
+        <textarea id="promptInput" rows="3" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500" placeholder="e.g. Send $35 to Alex for project cloud hosting charges"></textarea>
+      </div>
+
+      <button onclick="handleAIParse()" id="parseBtn" class="mt-4 w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2.5 rounded-xl transition flex justify-center items-center gap-2">
+        <span>Analyze Intent with Local LLM</span>
+      </button>
+    </div>
+
+    <!-- Card 2: Extracted Intent & PayPal Trigger -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+      <div>
+        <h2 class="text-lg font-semibold text-emerald-400 mb-2">2. Extracted Payment Intent</h2>
+        <p class="text-xs text-slate-400 mb-4">Structured parameters parsed by local AI model.</p>
+
+        <div id="intentBox" class="bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs font-mono space-y-2 text-slate-300 min-h-[90px]">
+          <div class="text-slate-500 italic">Waiting for prompt submission...</div>
+        </div>
+      </div>
+
+      <button onclick="handleCreateOrder()" id="payBtn" disabled class="mt-4 w-full bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-emerald-500 text-white font-medium py-2.5 rounded-xl transition">
+        Create PayPal Order
+      </button>
+    </div>
+
+    <!-- Card 3: Simulated SMS / OTP Extractor -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between md:col-span-2">
+      <div>
+        <h2 class="text-lg font-semibold text-amber-400 mb-2">3. Autonomous OTP Capture & Settlement</h2>
+        <p class="text-xs text-slate-400 mb-4">Simulate incoming 2FA SMS to auto-verify and capture payment.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Simulated 2FA SMS Message:</label>
+            <input id="smsInput" type="text" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" value="Your PayPal security verification code is 849201. Do not share.">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Active PayPal Order ID:</label>
+            <input id="activeOrderId" type="text" readonly class="w-full bg-slate-950 border border-slate-800 text-slate-400 rounded-xl p-3 text-sm font-mono" placeholder="Order ID will appear here...">
+          </div>
+        </div>
+
+        <!-- Receipt / Status Area -->
+        <div id="statusBox" class="hidden bg-slate-950 border border-emerald-900/60 rounded-xl p-4 text-sm font-mono text-emerald-400"></div>
+      </div>
+
+      <div class="flex gap-4 mt-2">
+        <button onclick="handleExtractOTP()" id="otpBtn" class="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-medium py-2.5 rounded-xl transition">
+          Auto-Extract OTP
+        </button>
+        <button onclick="handleCaptureOrder()" id="captureBtn" disabled class="flex-1 bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-emerald-500 text-white font-medium py-2.5 rounded-xl transition">
+          Verify OTP & Capture Payment
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    const API_BASE = "http://127.0.0.1:8000";
+    let currentParsedData = null;
+
+    async function handleAIParse() {
+      const prompt = document.getElementById("promptInput").value.trim();
+      if (!prompt) return alert("Please enter a payment prompt!");
+
+      const btn = document.getElementById("parseBtn");
+      btn.innerText = "Analyzing Intent...";
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/ai/intent`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt })
+        });
+        const data = await res.json();
+        currentParsedData = data;
+
+        document.getElementById("intentBox").innerHTML = `
+          <div><span class="text-blue-400">Recipient:</span> ${data.recipient || "N/A"}</div>
+          <div><span class="text-emerald-400">Amount:</span> ${data.currency || "$"}${data.amount || "0"}</div>
+          <div><span class="text-amber-400">Purpose:</span> ${data.purpose || "Payment"}</div>
+          <div><span class="text-purple-400">Confidence:</span> ${data.confidence || "High"}</div>
+        `;
+        document.getElementById("payBtn").disabled = false;
+      } catch (err) {
+        alert("Failed to communicate with AI Backend. Check if FastAPI is running!");
+      } finally {
+        btn.innerText = "Analyze Intent with Local LLM";
+        btn.disabled = false;
+      }
+    }
+
+    async function handleCreateOrder() {
+      const amount = currentParsedData && currentParsedData.amount ? parseFloat(currentParsedData.amount) : 25.0;
+      const currency = currentParsedData && currentParsedData.currency && currentParsedData.currency.length === 3 ? currentParsedData.currency : "USD";
+
+      const btn = document.getElementById("payBtn");
+      btn.innerText = "Creating Order...";
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/paypal/create-order`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount, currency })
+        });
+        const order = await res.json();
+        document.getElementById("activeOrderId").value = order.id;
+        document.getElementById("captureBtn").disabled = false;
+
+        const statusBox = document.getElementById("statusBox");
+        statusBox.classList.remove("hidden");
+        statusBox.innerHTML = `✅ Order Created: <span class="text-white">${order.id}</span> | Status: <span class="text-amber-300">${order.status}</span>`;
+      } catch (err) {
+        alert("Error creating PayPal order.");
+      } finally {
+        btn.innerText = "Create PayPal Order";
+      }
+    }
+
+    async function handleExtractOTP() {
+      const message = document.getElementById("smsInput").value;
+      try {
+        const res = await fetch(`${API_BASE}/api/ai/extract-otp`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message })
+        });
+        const data = await res.json();
+        alert(`Extracted OTP: ${data.otp} (Status: ${data.status})`);
+      } catch (err) {
+        alert("Failed to extract OTP.");
+      }
+    }
+
+    async function handleCaptureOrder() {
+      const order_id = document.getElementById("activeOrderId").value;
+      if (!order_id) return alert("No active order to capture!");
+
+      const btn = document.getElementById("captureBtn");
+      btn.innerText = "Finalizing...";
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/paypal/capture-order`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ order_id })
+        });
+        const result = await res.json();
+
+        const statusBox = document.getElementById("statusBox");
+        statusBox.classList.remove("hidden");
+        statusBox.innerHTML = `
+          🎉 <span class="text-emerald-300 font-bold">TRANSACTION SETTLED</span><br>
+          • Order ID: ${result.id}<br>
+          • Payer ID: ${result.payer ? result.payer.payer_id : "PAYER-VERIFIED"}<br>
+          • Status: <span class="text-white bg-emerald-800 px-2 py-0.5 rounded">${result.status}</span><br>
+          • Timestamp: ${result.capture_time}
+        `;
+      } catch (err) {
+        alert("Failed to capture order.");
+      } finally {
+        btn.innerText = "Verify OTP & Capture Payment";
+      }
+    }
+  </script>
+</body>
+</html>
