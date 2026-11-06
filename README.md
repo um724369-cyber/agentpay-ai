@@ -14,3 +14,23 @@ AgentPay AI is an autonomous payment workflow that translates unstructured natur
 ---
 
 ## 🏗️ System Architecture
+
+```text
+[User Natural Prompt] 
+          │
+          ▼
+   [FastAPI Gateway]
+          │
+   ┌──────┴─────────────────────────────┐
+   ▼                                    ▼
+[Local LLM / Ollama]          [PayPal REST Engine]
+(Extracts Amount/Recipient)   (Creates PAYID Order)
+   │                                    │
+   └───────────────┬────────────────────┘
+                   ▼
+         [OTP Regex Engine]
+         (Parses 2FA Token)
+                   │
+                   ▼
+         [Settlement Engine]
+      (Status: COMPLETED / 200 OK)
